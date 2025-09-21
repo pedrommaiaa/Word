@@ -18,7 +18,13 @@ let package = Package(
         .executableTarget(
             name: "Word",
             dependencies: [],
-            path: "Sources"
+            path: "Sources",
+            exclude: [
+                "Word/Resources/Assets.xcassets",
+                "Word/Resources/Main.storyboard", 
+                "Word/Info.plist",
+                "Word/Word.entitlements"
+            ]
         ),
         .testTarget(
             name: "WordTests",
