@@ -9,6 +9,16 @@ class DocumentLayout {
     private static let marginSize: CGFloat = 72           // 1" margins
     private static let workspaceGray = NSColor(red: 0.93, green: 0.93, blue: 0.93, alpha: 1.0)
     
+    // Professional document standards
+    private static let standardPaperWidthPoints: CGFloat = 612    // 8.5" × 72 pts/inch = 612 pts
+    private static let standardPaperHeightPoints: CGFloat = 792   // 11" × 72 pts/inch = 792 pts
+    private static let usableTextWidth: CGFloat = 468             // 612 - (72 × 2) = 468 pts (6.5")
+    
+    // Typography standards for optimal readability
+    private static let optimalCharactersPerLine = 65    // Sweet spot between 45-75 chars
+    private static let minimumWindowWidth: CGFloat = 800  // Minimum to show paper + controls
+    private static let minimumWindowHeight: CGFloat = 600
+    
     // MARK: - Font Metrics (WYSIWYG Industry Standards)
     
     // Get precise font metrics using CoreText (like Google Docs/MS Word)
@@ -57,26 +67,34 @@ class DocumentLayout {
         return naturalLineHeight * lineSpacing
     }
     
-    // MARK: - Google Docs Compatible Paper Sizing
+    // MARK: - Professional Document Layout Standards
     
     static func calculatePaperSize(for windowSize: NSSize, zoomLevel: CGFloat = 1.0) -> NSSize {
-        // Calculate exact width needed for the 84-character Google Docs test string
-        let font = NSFont(name: "Arial", size: 11) ?? NSFont.systemFont(ofSize: 11)
-        let googleDocsTestString = "sadasdasdmasdajsdaushdasdkhashdkahsjdkhaskjdhakjshdkjashdkjahsdkjashdkjhajksdhskajdh"
-        let exactStringWidth = measureTextWidth(text: googleDocsTestString, font: font)
+        // FIXED paper dimensions - independent of window size (like professional word processors)
+        // Standard US Letter: 8.5" × 11" = 612pt × 792pt
+        let logicalPaperWidth = standardPaperWidthPoints
+        let logicalPaperHeight = standardPaperHeightPoints
         
-        // Add a tiny buffer to ensure perfect fit (Google Docs seems to have slightly more space)
-        let googleDocsUsableWidth = exactStringWidth + 2.0  // Add 2pt buffer for perfect match
-        let logicalPaperWidth = googleDocsUsableWidth + (marginSize * 2)
-        
-        // Use standard US Letter height ratio (11/8.5 = 1.294)
-        let logicalPaperHeight = logicalPaperWidth * 1.294
-        
-        // Apply zoom for visual scaling only (character count stays the same)
+        // Apply zoom for visual scaling only - line length stays EXACTLY the same
         let visualPaperWidth = logicalPaperWidth * zoomLevel
         let visualPaperHeight = logicalPaperHeight * zoomLevel
         
         return NSSize(width: visualPaperWidth, height: visualPaperHeight)
+    }
+    
+    // Verify line length meets typography standards
+    static func validateLineLength(font: NSFont) -> Bool {
+        // Test with optimal character count (65 characters)
+        let testString = String(repeating: "M", count: optimalCharactersPerLine) // 'M' is widest char
+        let actualWidth = measureTextWidth(text: testString, font: font)
+        
+        // Should fit within usable text width (6.5" = 468pt)
+        return actualWidth <= usableTextWidth
+    }
+    
+    // Get minimum window size needed to properly display the document
+    static func getMinimumWindowSize() -> NSSize {
+        return NSSize(width: minimumWindowWidth, height: minimumWindowHeight)
     }
     
     static func createPaperView(size: NSSize) -> NSView {
@@ -116,10 +134,14 @@ class DocumentLayout {
         let scaledMarginSize = marginSize * zoomLevel
         textView.textContainerInset = NSSize(width: scaledMarginSize, height: scaledMarginSize)
         
-        // Configure text container with Google Docs precision
+        // Configure text container with FIXED width (professional standard)
         if let textContainer = textView.textContainer {
-            let usableWidth = paperSize.width - (scaledMarginSize * 2)
-            textContainer.size = NSSize(width: usableWidth, height: paperSize.height - (scaledMarginSize * 2))
+            // CRITICAL: Use fixed usable width, NOT paper size dependent
+            // This ensures consistent line length regardless of zoom or window size
+            let fixedUsableWidth = usableTextWidth * zoomLevel  // 468pt scaled by zoom only
+            let usableHeight = paperSize.height - (scaledMarginSize * 2)
+            
+            textContainer.size = NSSize(width: fixedUsableWidth, height: usableHeight)
             textContainer.widthTracksTextView = false
             textContainer.heightTracksTextView = false
             textContainer.lineFragmentPadding = 0
@@ -132,6 +154,12 @@ class DocumentLayout {
         textView.isContinuousSpellCheckingEnabled = true
         textView.allowsUndo = true
         textView.isRichText = false  // Keep it simple like the original
+        
+        // Modern text styling
+        textView.selectedTextAttributes = [
+            .backgroundColor: GlassmorphismDesign.Colors.accentBlueLight,
+            .foregroundColor: GlassmorphismDesign.Colors.primaryText
+        ]
         
         // Set up Google Docs compatible paragraph style
         let lineHeight = calculateLineHeight(font: font, lineSpacing: 1.15)
@@ -162,7 +190,7 @@ class DocumentLayout {
         
         textView.typingAttributes = [
             .font: font,
-            .foregroundColor: NSColor.black,
+            .foregroundColor: GlassmorphismDesign.Colors.primaryText,
             .paragraphStyle: paragraphStyle
         ]
     }

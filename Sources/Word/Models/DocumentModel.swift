@@ -24,16 +24,22 @@ class DocumentModel: NSDocument {
     }
     
     override func makeWindowControllers() {
-        // Create a simple document window
+        // Get minimum window size from document layout standards
+        let minSize = DocumentLayout.getMinimumWindowSize()
+        
+        // Create a document window with professional dimensions
         let window = NSWindow(
-            contentRect: NSRect(x: 100, y: 100, width: 900, height: 700),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            contentRect: NSRect(x: 100, y: 100, width: 1000, height: 800),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         
         window.title = displayName.isEmpty ? "Untitled" : displayName
-        window.minSize = NSSize(width: 700, height: 500)
+        window.minSize = minSize  // Enforce minimum size for proper document display
+        
+        // Apply modern glassmorphism window styling
+        GlassmorphismDesign.styleWindow(window)
         
         // Create document view controller
         let documentViewController = DocumentViewController()
