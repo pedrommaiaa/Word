@@ -23,9 +23,7 @@ class DocumentController: NSDocumentController {
     // MARK: - Document Management
     
     override func makeUntitledDocument(ofType typeName: String) throws -> NSDocument {
-        // Create our custom Document directly
-        let document = Document()
-        return document
+        return DocumentModel()
     }
     
     override func makeDocument(withContentsOf url: URL, ofType typeName: String) throws -> NSDocument {
@@ -37,7 +35,7 @@ class DocumentController: NSDocumentController {
     // MARK: - Document Types
     
     override var documentClassNames: [String] {
-        return ["Word.Document"]
+        return ["Word.DocumentModel"]
     }
     
     override var defaultType: String? {
@@ -45,12 +43,7 @@ class DocumentController: NSDocumentController {
     }
     
     override func documentClass(forType typeName: String) -> AnyClass? {
-        switch typeName {
-        case "public.plain-text", "public.rtf":
-            return Document.self
-        default:
-            return Document.self
-        }
+        return DocumentModel.self
     }
     
     override func displayName(forType typeName: String) -> String {
@@ -177,7 +170,7 @@ class DocumentController: NSDocumentController {
         super.addDocument(document)
         
         // Configure the document
-        if document is Document {
+        if document is DocumentModel {
             // Set up any additional document configuration here
         }
     }

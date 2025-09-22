@@ -25,8 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        // Create document directly to avoid DocumentController issues
-        let document = Document()
+        let document = DocumentModel()
         document.makeWindowControllers()
         document.showWindows()
         NSDocumentController.shared.addDocument(document)
@@ -167,22 +166,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc private func zoomIn() {
         if let window = NSApp.keyWindow,
-           let documentView = window.contentViewController as? DocumentViewController {
-            documentView.zoomIn()
+           let documentViewController = window.contentViewController as? DocumentViewController {
+            documentViewController.zoomIn()
         }
     }
     
     @objc private func zoomOut() {
         if let window = NSApp.keyWindow,
-           let documentView = window.contentViewController as? DocumentViewController {
-            documentView.zoomOut()
+           let documentViewController = window.contentViewController as? DocumentViewController {
+            documentViewController.zoomOut()
         }
     }
     
     @objc private func zoomActualSize() {
         if let window = NSApp.keyWindow,
-           let documentView = window.contentViewController as? DocumentViewController {
-            documentView.zoomActualSize()
+           let documentViewController = window.contentViewController as? DocumentViewController {
+            documentViewController.zoomActualSize()
         }
     }
 }

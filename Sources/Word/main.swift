@@ -3,14 +3,14 @@ import Cocoa
 // Set up the application
 let app = NSApplication.shared
 
-// CRITICAL: Initialize custom DocumentController BEFORE setting delegate
-// This ensures our DocumentController becomes the shared instance
+// Initialize custom DocumentController
 _ = DocumentController()
 
+// Set up app delegate
 let delegate = AppDelegate()
 app.delegate = delegate
 
-// Configure the application to behave as a regular app
+// Configure as regular app
 app.setActivationPolicy(.regular)
 
 // Start the main event loop

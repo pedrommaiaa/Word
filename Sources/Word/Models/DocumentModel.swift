@@ -1,7 +1,8 @@
 import Cocoa
 import UniformTypeIdentifiers
 
-class Document: NSDocument {
+/// Core document model - handles only data and persistence
+class DocumentModel: NSDocument {
     
     // MARK: - Properties
     
@@ -9,17 +10,7 @@ class Document: NSDocument {
     var textStorage = NSTextStorage()
     
     /// Current font settings
-    var defaultFont: NSFont = NSFont.systemFont(ofSize: 12)
-    
-    /// Document metadata
-    var wordCount: Int {
-        return textStorage.string.components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }.count
-    }
-    
-    var characterCount: Int {
-        return textStorage.length
-    }
+    var defaultFont: NSFont = NSFont(name: "Arial", size: 11) ?? NSFont.systemFont(ofSize: 11)
     
     // MARK: - Document Lifecycle
     
@@ -33,28 +24,36 @@ class Document: NSDocument {
     }
     
     override func makeWindowControllers() {
-        let storyboard = NSStoryboard(name: NSStoryboard.Name("Main"), bundle: nil)
-        if let windowController = storyboard.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier("DocumentWindowController")) as? NSWindowController {
-            addWindowController(windowController)
-            
-            // Set up the document view controller
-            if let documentViewController = windowController.contentViewController as? DocumentViewController {
-                documentViewController.document = self
-                documentViewController.representedObject = self
-            }
-        }
+        // Create a simple document window
+        let window = NSWindow(
+            contentRect: NSRect(x: 100, y: 100, width: 900, height: 700),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        window.title = displayName.isEmpty ? "Untitled" : displayName
+        window.minSize = NSSize(width: 700, height: 500)
+        
+        // Create document view controller
+        let documentViewController = DocumentViewController()
+        documentViewController.document = self
+        window.contentViewController = documentViewController
+        
+        window.center()
+        
+        let windowController = NSWindowController(window: window)
+        addWindowController(windowController)
     }
     
     // MARK: - Document Setup
     
     private func setupDocument() {
-        // Set up default text attributes
         let defaultAttributes: [NSAttributedString.Key: Any] = [
             .font: defaultFont,
-            .foregroundColor: NSColor.textColor
+            .foregroundColor: NSColor.black
         ]
         
-        // If the document is empty, add default attributes
         if textStorage.length == 0 {
             textStorage.append(NSAttributedString(string: "", attributes: defaultAttributes))
         }
@@ -68,7 +67,7 @@ class Document: NSDocument {
             return textStorage.string.data(using: .utf8) ?? Data()
         case "public.rtf":
             let range = NSRange(location: 0, length: textStorage.length)
-            return try textStorage.rtf(from: range, documentAttributes: [:])
+            return textStorage.rtf(from: range, documentAttributes: [:]) ?? Data()
         default:
             throw NSError(domain: NSOSStatusErrorDomain, code: unimpErr, userInfo: nil)
         }
@@ -80,7 +79,7 @@ class Document: NSDocument {
             if let string = String(data: data, encoding: .utf8) {
                 let attributes: [NSAttributedString.Key: Any] = [
                     .font: defaultFont,
-                    .foregroundColor: NSColor.textColor
+                    .foregroundColor: NSColor.black
                 ]
                 textStorage.setAttributedString(NSAttributedString(string: string, attributes: attributes))
             } else {
@@ -108,6 +107,14 @@ class Document: NSDocument {
         return ["public.plain-text", "public.rtf"]
     }
     
+    override class var readableTypes: [String] {
+        return ["public.plain-text", "public.rtf"]
+    }
+    
+    override class var writableTypes: [String] {
+        return ["public.plain-text", "public.rtf"]
+    }
+    
     override func fileNameExtension(forType typeName: String, saveOperation: NSDocument.SaveOperationType) -> String? {
         switch typeName {
         case "public.plain-text":
@@ -119,55 +126,13 @@ class Document: NSDocument {
         }
     }
     
-    // MARK: - Text Formatting Methods
-    
-    func applyFont(_ font: NSFont, to range: NSRange? = nil) {
-        let targetRange = range ?? NSRange(location: 0, length: textStorage.length)
-        textStorage.addAttribute(.font, value: font, range: targetRange)
-        updateChangeCount(.changeDone)
-    }
-    
-    func applyBold(to range: NSRange? = nil) {
-        let targetRange = range ?? NSRange(location: 0, length: textStorage.length)
-        textStorage.enumerateAttribute(.font, in: targetRange) { (value, range, _) in
-            if let font = value as? NSFont {
-                let boldFont = NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask)
-                textStorage.addAttribute(.font, value: boldFont, range: range)
-            }
-        }
-        updateChangeCount(.changeDone)
-    }
-    
-    func applyItalic(to range: NSRange? = nil) {
-        let targetRange = range ?? NSRange(location: 0, length: textStorage.length)
-        textStorage.enumerateAttribute(.font, in: targetRange) { (value, range, _) in
-            if let font = value as? NSFont {
-                let italicFont = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
-                textStorage.addAttribute(.font, value: italicFont, range: range)
-            }
-        }
-        updateChangeCount(.changeDone)
-    }
-    
-    func applyUnderline(to range: NSRange? = nil) {
-        let targetRange = range ?? NSRange(location: 0, length: textStorage.length)
-        textStorage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: targetRange)
-        updateChangeCount(.changeDone)
-    }
-    
-    func applyTextColor(_ color: NSColor, to range: NSRange? = nil) {
-        let targetRange = range ?? NSRange(location: 0, length: textStorage.length)
-        textStorage.addAttribute(.foregroundColor, value: color, range: targetRange)
-        updateChangeCount(.changeDone)
-    }
-    
     // MARK: - Text Statistics
     
     func getDocumentStatistics() -> (words: Int, characters: Int, lines: Int) {
         let text = textStorage.string
         let words = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
         let characters = text.count
-        let lines = text.components(separatedBy: .newlines).count
+        let lines = max(1, text.components(separatedBy: .newlines).count)
         
         return (words: words, characters: characters, lines: lines)
     }
