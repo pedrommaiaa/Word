@@ -15,6 +15,16 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
     private var zoomOutButton: NSView?
     private var zoomLabel: NSTextField?
     
+    // Font controls - separate floating buttons
+    private var fontButton: NSView!
+    private var fontSizeButton: NSView!
+    private var fontLabel: NSTextField!
+    private var fontSizeLabel: NSTextField!
+    
+    // Width constraints for dynamic sizing
+    private var fontButtonWidthConstraint: NSLayoutConstraint!
+    private var fontSizeButtonWidthConstraint: NSLayoutConstraint!
+    
     // MARK: - Properties
     
     var document: DocumentModel? {
@@ -95,6 +105,7 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
         createPaperViews()
         createTextView()
         createStatusBar()
+        createFontControls()
         createZoomControl()
         setupConstraints()
         layoutPaper()
@@ -144,6 +155,75 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
         statusBar.addSubview(statusLabel)
         
         view.addSubview(statusBar)
+    }
+    
+    private func createFontControls() {
+        // Create font button - displays current font name
+        fontButton = createFloatingButton()
+        fontLabel = NSTextField(labelWithString: "Arial")
+        setupFontLabel()
+        fontButton.addSubview(fontLabel)
+        
+        // Add click gesture for font selection
+        let fontClickGesture = NSClickGestureRecognizer(target: self, action: #selector(showFontMenu))
+        fontButton.addGestureRecognizer(fontClickGesture)
+        
+        // Create font size button - displays current size
+        fontSizeButton = createFloatingButton()
+        fontSizeLabel = NSTextField(labelWithString: "11")
+        setupFontSizeLabel()
+        fontSizeButton.addSubview(fontSizeLabel)
+        
+        // Add click gesture for font size selection
+        let sizeClickGesture = NSClickGestureRecognizer(target: self, action: #selector(showFontSizeMenu))
+        fontSizeButton.addGestureRecognizer(sizeClickGesture)
+        
+        view.addSubview(fontButton)
+        view.addSubview(fontSizeButton)
+    }
+    
+    private func createFloatingButton() -> NSView {
+        let button = NSView()
+        button.wantsLayer = true
+        button.layer?.backgroundColor = NSColor.white.cgColor
+        button.layer?.cornerRadius = 12
+        button.layer?.shadowColor = NSColor.black.cgColor
+        button.layer?.shadowOpacity = 0.1
+        button.layer?.shadowOffset = NSSize(width: 0, height: 2)
+        button.layer?.shadowRadius = 4
+        
+        // Subtle border for definition
+        button.layer?.borderWidth = 0.5
+        button.layer?.borderColor = NSColor(white: 0.9, alpha: 1.0).cgColor
+        
+        return button
+    }
+    
+    private func setupFontLabel() {
+        fontLabel.font = NSFont.systemFont(ofSize: 9, weight: .medium) // Smaller font for 70px width
+        fontLabel.textColor = NSColor(white: 0.2, alpha: 1.0)
+        fontLabel.backgroundColor = NSColor.clear
+        fontLabel.isBezeled = false
+        fontLabel.isEditable = false
+        fontLabel.alignment = .center
+        fontLabel.maximumNumberOfLines = 1
+        fontLabel.lineBreakMode = .byTruncatingTail
+    }
+    
+    private func setupFontSizeLabel() {
+        fontSizeLabel.font = NSFont.systemFont(ofSize: 9, weight: .medium) // Match font label size
+        fontSizeLabel.textColor = NSColor(white: 0.2, alpha: 1.0)
+        fontSizeLabel.backgroundColor = NSColor.clear
+        fontSizeLabel.isBezeled = false
+        fontSizeLabel.isEditable = false
+        fontSizeLabel.alignment = .center
+    }
+    
+    private func calculateOptimalWidth(for text: String, font: NSFont, minWidth: CGFloat = 40, maxWidth: CGFloat = 120) -> CGFloat {
+        let textSize = text.size(withAttributes: [.font: font])
+        let padding: CGFloat = 16 // 8px on each side to match constraint padding (4px each side + some buffer)
+        let calculatedWidth = textSize.width + padding
+        return max(minWidth, min(maxWidth, calculatedWidth))
     }
     
     private func createZoomControl() {
@@ -224,6 +304,12 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
         zoomOutButton?.translatesAutoresizingMaskIntoConstraints = false
         zoomLabel?.translatesAutoresizingMaskIntoConstraints = false
         
+        // Font controls
+        fontButton.translatesAutoresizingMaskIntoConstraints = false
+        fontSizeButton.translatesAutoresizingMaskIntoConstraints = false
+        fontLabel.translatesAutoresizingMaskIntoConstraints = false
+        fontSizeLabel.translatesAutoresizingMaskIntoConstraints = false
+        
         NSLayoutConstraint.activate([
             // Scroll view with original workspace padding
             scrollView.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
@@ -240,6 +326,38 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
             // Status label positioned like original
             statusLabel.leadingAnchor.constraint(equalTo: statusBar.leadingAnchor, constant: 20),
             statusLabel.centerYAnchor.constraint(equalTo: statusBar.centerYAnchor)
+        ])
+        
+        // Add font controls constraints - separate floating buttons
+        NSLayoutConstraint.activate([
+            // Font button - leftmost (dynamic width)
+            fontButton.trailingAnchor.constraint(equalTo: fontSizeButton.leadingAnchor, constant: -15),
+            fontButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 15),
+            fontButton.heightAnchor.constraint(equalToConstant: 24),
+            
+            // Font label inside font button
+            fontLabel.centerXAnchor.constraint(equalTo: fontButton.centerXAnchor),
+            fontLabel.centerYAnchor.constraint(equalTo: fontButton.centerYAnchor),
+            fontLabel.leadingAnchor.constraint(equalTo: fontButton.leadingAnchor, constant: 4),
+            fontLabel.trailingAnchor.constraint(equalTo: fontButton.trailingAnchor, constant: -4),
+            
+            // Font size button - middle (compact width)
+            fontSizeButton.trailingAnchor.constraint(equalTo: zoomContainer?.leadingAnchor ?? view.trailingAnchor, constant: -15),
+            fontSizeButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 15),
+            fontSizeButton.heightAnchor.constraint(equalToConstant: 24),
+            
+            // Font size label inside font size button
+            fontSizeLabel.centerXAnchor.constraint(equalTo: fontSizeButton.centerXAnchor),
+            fontSizeLabel.centerYAnchor.constraint(equalTo: fontSizeButton.centerYAnchor)
+        ])
+        
+        // Create and store width constraints for dynamic sizing
+        fontButtonWidthConstraint = fontButton.widthAnchor.constraint(equalToConstant: 70)
+        fontSizeButtonWidthConstraint = fontSizeButton.widthAnchor.constraint(equalToConstant: 50)
+        
+        NSLayoutConstraint.activate([
+            fontButtonWidthConstraint,
+            fontSizeButtonWidthConstraint
         ])
         
         // Add zoom control constraints - compact top right corner
@@ -282,6 +400,15 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
             queue: .main
         ) { [weak self] _ in
             self?.textDidChange()
+        }
+        
+        // Monitor selection changes to update font controls
+        NotificationCenter.default.addObserver(
+            forName: NSTextView.didChangeSelectionNotification,
+            object: textView,
+            queue: .main
+        ) { [weak self] _ in
+            self?.updateFontControls()
         }
         
     }
@@ -330,9 +457,10 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
             height: paperSize.height
         )
         
-        // Store current text content and selection
+        // Store current text content, selection, and typing attributes
         let currentText = textView.string
         let currentSelection = textView.selectedRange()
+        let currentTypingAttributes = textView.typingAttributes
         
         // Update text view size and configuration
         textView.frame = NSRect(x: 0, y: 0, width: paperSize.width, height: paperSize.height)
@@ -345,18 +473,31 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
             textView.string = currentText
         }
         
-        // Apply formatting to existing text while preserving content
+        // Update existing text formatting while preserving user's font choices
         if let textStorage = textView.textStorage, textStorage.length > 0 {
-            let range = NSRange(location: 0, length: textStorage.length)
-            let baseFontSize: CGFloat = 11
-            let scaledFontSize = baseFontSize * zoomLevel
-            let font = NSFont(name: "Arial", size: scaledFontSize) ?? NSFont.systemFont(ofSize: scaledFontSize)
-            
-            textStorage.addAttribute(.font, value: font, range: range)
+            // Only update zoom scaling for existing fonts, don't override font choices
+            textStorage.enumerateAttribute(.font, in: NSRange(location: 0, length: textStorage.length)) { (value, range, stop) in
+                if let currentFont = value as? NSFont {
+                    // Scale the existing font to match new zoom level
+                    let originalSize = currentFont.pointSize / self.zoomLevel // Get original size
+                    let newScaledSize = originalSize * zoomLevel
+                    if let newFont = NSFont(name: currentFont.fontName, size: newScaledSize) {
+                        textStorage.addAttribute(.font, value: newFont, range: range)
+                    }
+                }
+            }
         }
+        
+        // Restore typing attributes (preserves user's font/size choice)
+        textView.typingAttributes = currentTypingAttributes
         
         // Restore selection
         textView.selectedRange = currentSelection
+        
+        // Update font controls to show the preserved settings
+        DispatchQueue.main.async { [weak self] in
+            self?.updateFontControls()
+        }
         
         // Ensure proper scroll position after layout
         DispatchQueue.main.async { [weak self] in
@@ -376,8 +517,25 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
     // MARK: - Layout Helpers
     
     private func updateTextViewLayout(paperSize: NSSize, zoomLevel: CGFloat) {
+        // Store current typing attributes to preserve user's font choice
+        let currentTypingAttributes = textView.typingAttributes
+        
         // Use the centralized layout setup for consistency
         DocumentLayout.setupTextView(textView, paperSize: paperSize, zoomLevel: zoomLevel)
+        
+        // Restore user's typing attributes (font/size choice)
+        if let userFont = currentTypingAttributes[.font] as? NSFont {
+            // Update the user's chosen font with the correct zoom scaling
+            let originalSize = userFont.pointSize / zoomLevel // Get original size
+            let newScaledSize = originalSize * zoomLevel
+            if let scaledFont = NSFont(name: userFont.fontName, size: newScaledSize) {
+                var preservedAttributes = currentTypingAttributes
+                preservedAttributes[.font] = scaledFont
+                textView.typingAttributes = preservedAttributes
+            } else {
+                textView.typingAttributes = currentTypingAttributes
+            }
+        }
     }
     
     // MARK: - Event Handlers
@@ -385,6 +543,7 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
     private func textDidChange() {
         document?.updateChangeCount(.changeDone)
         updateStatusBar()
+        updateFontControls()
     }
     
     
@@ -400,6 +559,245 @@ class DocumentViewController: NSViewController, NSWindowDelegate {
     }
     
     // MARK: - Zoom Support
+    
+    @objc private func showFontMenu() {
+        let menu = NSMenu()
+        
+        let basicFonts = [
+            "Arial",
+            "Times New Roman", 
+            "Helvetica",
+            "Georgia",
+            "Courier New",
+            "Verdana",
+            "Trebuchet MS",
+            "Comic Sans MS"
+        ]
+        
+        for fontName in basicFonts {
+            let menuItem = NSMenuItem(title: fontName, action: #selector(selectFont(_:)), keyEquivalent: "")
+            menuItem.target = self
+            menuItem.representedObject = fontName
+            
+            // Check current font (no checkmark if mixed selection)
+            if let currentFontName = getCurrentFontName(), fontName == currentFontName {
+                menuItem.state = .on
+            }
+            
+            menu.addItem(menuItem)
+        }
+        
+        // Show menu below the font button
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: -5), in: fontButton)
+    }
+    
+    @objc private func showFontSizeMenu() {
+        let menu = NSMenu()
+        
+        let commonSizes = ["8", "9", "10", "11", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48", "72"]
+        
+        for sizeString in commonSizes {
+            let menuItem = NSMenuItem(title: sizeString, action: #selector(selectFontSize(_:)), keyEquivalent: "")
+            menuItem.target = self
+            menuItem.representedObject = sizeString
+            
+            // Check current size (no checkmark if mixed selection)
+            if let currentSize = getCurrentFontSize(), CGFloat(Double(sizeString) ?? 0) == currentSize {
+                menuItem.state = .on
+            }
+            
+            menu.addItem(menuItem)
+        }
+        
+        // Show menu below the font size button
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: -5), in: fontSizeButton)
+    }
+    
+    @objc private func selectFont(_ sender: NSMenuItem) {
+        guard let fontName = sender.representedObject as? String else { return }
+        
+        let currentSize = getCurrentFontSize() ?? 11.0
+        print("Applying font change: \(fontName) at size \(currentSize)")
+        applyFontChange(fontName: fontName, fontSize: currentSize)
+    }
+    
+    @objc private func selectFontSize(_ sender: NSMenuItem) {
+        guard let sizeString = sender.representedObject as? String,
+              let fontSize = Double(sizeString) else { return }
+        
+        let currentFont = getCurrentFontName() ?? "Arial"
+        print("Applying size change: \(currentFont) at size \(fontSize)")
+        applyFontChange(fontName: currentFont, fontSize: CGFloat(fontSize))
+    }
+    
+    private func getCurrentFontName() -> String? {
+        guard let textView = textView, let textStorage = textView.textStorage else { 
+            return fontLabel?.stringValue ?? "Arial" 
+        }
+        
+        let selectedRange = textView.selectedRange()
+        
+        if selectedRange.length > 0 {
+            // Check if selection has mixed fonts
+            var mixedFonts = false
+            var firstFont: NSFont?
+            
+            textStorage.enumerateAttribute(.font, in: selectedRange) { (value, range, stop) in
+                if let font = value as? NSFont {
+                    if let first = firstFont {
+                        if first.familyName != font.familyName {
+                            mixedFonts = true
+                            stop.pointee = true
+                        }
+                    } else {
+                        firstFont = font
+                    }
+                }
+            }
+            
+            if mixedFonts {
+                return nil // Mixed selection - return nil for blank display
+            } else if let font = firstFont {
+                return font.familyName ?? "Arial"
+            }
+        } else {
+            // No selection - use typing attributes or cursor position
+            if let font = textView.typingAttributes[.font] as? NSFont {
+                return font.familyName ?? "Arial"
+            } else if selectedRange.location > 0 {
+                let cursorLocation = max(0, selectedRange.location - 1)
+                if let font = textStorage.attribute(.font, at: cursorLocation, effectiveRange: nil) as? NSFont {
+                    return font.familyName ?? "Arial"
+                }
+            }
+        }
+        
+        return "Arial"
+    }
+    
+    private func getCurrentFontSize() -> CGFloat? {
+        guard let textView = textView, let textStorage = textView.textStorage else { 
+            return CGFloat(Double(fontSizeLabel?.stringValue ?? "11") ?? 11.0)
+        }
+        
+        let selectedRange = textView.selectedRange()
+        
+        if selectedRange.length > 0 {
+            // Check if selection has mixed font sizes
+            var mixedSizes = false
+            var firstSize: CGFloat?
+            
+            textStorage.enumerateAttribute(.font, in: selectedRange) { (value, range, stop) in
+                if let font = value as? NSFont {
+                    let size = font.pointSize / zoomLevel // Adjust for zoom
+                    if let first = firstSize {
+                        if abs(first - size) > 0.1 { // Allow small rounding differences
+                            mixedSizes = true
+                            stop.pointee = true
+                        }
+                    } else {
+                        firstSize = size
+                    }
+                }
+            }
+            
+            if mixedSizes {
+                return nil // Mixed selection - return nil for blank display
+            } else if let size = firstSize {
+                return size
+            }
+        } else {
+            // No selection - use typing attributes or cursor position
+            if let font = textView.typingAttributes[.font] as? NSFont {
+                return font.pointSize / zoomLevel
+            } else if selectedRange.location > 0 {
+                let cursorLocation = max(0, selectedRange.location - 1)
+                if let font = textStorage.attribute(.font, at: cursorLocation, effectiveRange: nil) as? NSFont {
+                    return font.pointSize / zoomLevel
+                }
+            }
+        }
+        
+        return 11.0
+    }
+    
+    private func applyFontChange(fontName: String, fontSize: CGFloat) {
+        guard let textView = textView else { return }
+        
+        // Calculate actual font size considering zoom
+        let actualFontSize = fontSize * zoomLevel
+        
+        // Try to create font with the family name
+        var newFont: NSFont?
+        if let font = NSFont(name: fontName, size: actualFontSize) {
+            newFont = font
+        } else {
+            // Fallback: try with family name and default traits
+            newFont = NSFont(descriptor: NSFontDescriptor(fontAttributes: [
+                .family: fontName,
+                .size: actualFontSize
+            ]), size: actualFontSize)
+        }
+        
+        // Final fallback to system font if needed
+        let font = newFont ?? NSFont.systemFont(ofSize: actualFontSize)
+        
+        let selectedRange = textView.selectedRange()
+        
+        if selectedRange.length > 0 {
+            // Apply to selection
+            textView.textStorage?.addAttribute(.font, value: font, range: selectedRange)
+        }
+        
+        // ALWAYS update typing attributes for future text
+        var typingAttributes = textView.typingAttributes
+        typingAttributes[.font] = font
+        textView.typingAttributes = typingAttributes
+        
+        // Update UI to reflect current settings
+        DispatchQueue.main.async { [weak self] in
+            self?.updateFontControls()
+        }
+        
+        // Mark document as changed
+        document?.updateChangeCount(.changeDone)
+    }
+    
+    private func updateFontControls() {
+        let currentFontName = getCurrentFontName()
+        let currentFontSize = getCurrentFontSize()
+        
+        // Handle mixed selections with blank display (like Google Docs)
+        let displayName = currentFontName ?? ""
+        let sizeString = currentFontSize != nil ? String(format: "%.0f", currentFontSize!) : ""
+        
+        // Update the readable labels
+        fontLabel?.stringValue = displayName
+        fontSizeLabel?.stringValue = sizeString
+        
+        // Calculate optimal widths and animate the change
+        if let labelFont = fontLabel?.font {
+            let textToMeasure = displayName.isEmpty ? "Arial" : displayName // Use Arial as base measurement for empty
+            let fontWidth = calculateOptimalWidth(for: textToMeasure, font: labelFont, minWidth: 60, maxWidth: 300)
+            animateWidthChange(constraint: fontButtonWidthConstraint, to: fontWidth)
+        }
+        
+        if let sizeFont = fontSizeLabel?.font {
+            let textToMeasure = sizeString.isEmpty ? "11" : sizeString // Use "11" as base measurement for empty
+            let sizeWidth = calculateOptimalWidth(for: textToMeasure, font: sizeFont, minWidth: 35, maxWidth: 60)
+            animateWidthChange(constraint: fontSizeButtonWidthConstraint, to: sizeWidth)
+        }
+    }
+    
+    private func animateWidthChange(constraint: NSLayoutConstraint, to newWidth: CGFloat) {
+        constraint.constant = newWidth
+        
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            context.allowsImplicitAnimation = true
+            view.layoutSubtreeIfNeeded()
+        }
+    }
     
     @objc func zoomIn() {
         zoomLevel = min(zoomLevel * 1.2, 3.0)
